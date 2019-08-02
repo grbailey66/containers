@@ -1,0 +1,354 @@
+https://katacoda.com --- googla login
+
+-------------------------------------------------------------------------------------------
+What is a container?      Notes
+
+# fire up a container for redis-server
+docker run -d --name=db redis:alpine
+Unable to find image 'redis:alpine' locally
+alpine: Pulling from library/redis
+050382585609: Pull complete
+5a2172e3e605: Pull complete
+88d872db005f: Pull complete
+0efd2228b1d7: Pull complete
+19548fea69ad: Pull complete
+eeda7229cd64: Pull complete
+Digest: sha256:a6d1a88fc04782573b49d1b16c1399f9af3e488cdae4ee2eeafe5383e15b2539
+Status: Downloaded newer image for redis:alpine
+afe5d3d45ef5d7b96be494b2a88bf82c05bd95984ffc4f618b3100c9626b3f4f
+
+# Find the process for redis-server
+$ ps aux | grep redis-server
+999       1824  0.4  1.0  25252 10344 ?        Ssl  20:25   0:00 redis-server
+
+# Docker command to find out info on container we startted
+$ docker top db
+UID                 PID                 PPID                C                   STIME           TTY                 TIME                CMD
+999                 1824                1808                0                   20:25           ?                   00:00:00            redis-server
+
+# What is the Parent?
+$ ps aux | grep 1808
+root      1808  0.0  0.5   7516  5568 ?        Sl   20:25   0:00 docker-containerd-shim -namespace moby -workdir 
+/var/lib/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby/afe5d3d45ef5d7b96be494b2a88bf82c05bd95984ffc4f618b3100c9626b3f4f 
+-address /var/run/docker/containerd/docker-containerd.sock -containerd-binary /usr/bin/docker-containerd 
+-runtime-root /var/run/docker/runtime-runc -debug
+
+# There is the container!
+
+# let's look at all the container processes under the dockerd process
+$ pstree -c -p -A $(pgrep dockerd)
+dockerd(688)-+-docker-containe(730)-+-docker-containe(1808)-+-redis-server(1824)-+-{redis-server}(1855)
+             |                      |                       |                    |-{redis-server}(1856)
+             |                      |                       |                    `-{redis-server}(1857)
+             |                      |                       |-{docker-containe}(1809)
+             |                      |                       |-{docker-containe}(1810)
+             |                      |                       |-{docker-containe}(1811)
+             |                      |                       |-{docker-containe}(1812)
+             |                      |                       |-{docker-containe}(1814)
+             |                      |                       `-{docker-containe}(1815)
+             |                      |-{docker-containe}(734)
+             |                      |-{docker-containe}(735)
+             |                      |-{docker-containe}(736)
+             |                      |-{docker-containe}(737)
+             |                      |-{docker-containe}(738)
+             |                      |-{docker-containe}(741)
+             |                      |-{docker-containe}(753)
+             |                      `-{docker-containe}(1807)
+             |-{dockerd}(724)
+             |-{dockerd}(726)
+             |-{dockerd}(727)
+             |-{dockerd}(728)
+             |-{dockerd}(732)
+             |-{dockerd}(739)
+             |-{dockerd}(742)
+             |-{dockerd}(743)
+             `-{dockerd}(1776)
+             
+# Basically (here under Ubuntu Liunx), all the containers are Processes
+             
+# Under Linux, tons of stuff about processes and internal are in /proc
+$ DBPID=$(pgrep redis-server)
+$ echo Redis is $DBPID
+Redis is 1824
+$ ls /proc
+1    132   1824  231   3    52   613  730  acpi       execdomains  kmsg         net           sysrq-trigger
+10   133   19    24    33   53   62   731  buddyinfo  fb           kpagecgroup  pagetypeinfo  sysvipc
+11   134   2     245   34   54   63   740  bus        filesystems  kpagecount   partitions    thread-self
+12   135   20    2461  35   55   64   747  cgroups    fs           kpageflags   sched_debug   timer_list
+125  145   204   25    36   56   65   774  cmdline    interrupts   loadavg      schedstat     timer_stats
+126  15    208   26    4    57   66   8    consoles   iomem        locks        scsi          tty
+127  16    21    2601  470  572  687  85   cpuinfo    ioports      mdstat       self          uptime
+128  17    22    2631  474  58   688  851  crypto     irq          meminfo      slabinfo      version
+129  170   220   27    5    59   7    86   devices    kallsyms     misc         softirqs      version_signature
+13   171   2286  270   506  6    715  87   diskstats  kcore        modules      stat          vmallocinfo
+130  18    23    28    515  60   717  9    dma        keys         mounts       swaps         vmstat
+131  1808  230   29    516  61   72   957  driver     key-users    mtrr         sys           zoneinfo
+
+# each process has its own set of info
+$ ls /proc/$DBPID
+attr        cmdline          environ  io         mem         ns             pagemap      schedstat  stat     timers
+autogroup   comm             exe      limits     mountinfo   numa_maps      personality  sessionid  statm    uid_map
+auxv        coredump_filter  fd       loginuid   mounts      oom_adj        projid_map   setgroups  status   wchan
+cgroup      cpuset           fdinfo   map_files  mountstats  oom_score      root         smaps      syscall
+clear_refs  cwd              gid_map  maps       net         oom_score_adj  sched        stack      task
+
+# here is the environment in which the redis process is running
+$ cat /proc/$DBPID/environ
+HOSTNAME=afe5d3d45ef5SHLVL=2REDIS_DOWNLOAD_SHA=2139009799d21d8ff94fc40b7f36ac46699b9e1254086299f8d3b223ca54a375HOME=\
+/home/redisPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\
+REDIS_DOWNLOAD_URL=http://download.redis.io/releases/redis-5.0.5.tar.gzREDIS_VERSION=5.0.5PWD=/data$
+
+# viewed from docker
+$ docker exec -it db env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=afe5d3d45ef5
+TERM=xterm
+REDIS_VERSION=5.0.5
+REDIS_DOWNLOAD_URL=http://download.redis.io/releases/redis-5.0.5.tar.gz
+REDIS_DOWNLOAD_SHA=2139009799d21d8ff94fc40b7f36ac46699b9e1254086299f8d3b223ca54a375
+HOME=/root
+
+# namespaces are the sandbox that defines what the limits of a container are, what it can access, etc.
+# When docker starts a new container, it creates a new namespace for it to run in
+# By running a process in it's own "Pid" namespace, it will look like it's the only process on the system
+
+# Types of availabe namespaces
+he available namespaces are:
+
+Mount (mnt)
+Process ID (pid)
+Network (net)
+Interprocess Communication (ipc)
+UTS (hostnames)
+User ID (user)
+Control group (cgroup)
+
+# More information at https://en.wikipedia.org/wiki/Linux_namespaces
+
+# the "unshare" command can launch process in its own container -- without using a runtime like doacker
+unshare --help
+
+# Launching a bash shell this way makes it look like bash is the only process on the machine
+$ sudo unshare --fork --pid --mount-proc bash
+$ ps
+  PID TTY          TIME CMD
+    1 pts/1    00:00:00 bash
+    9 pts/1    00:00:00 ps
+$ exit
+exit
+
+# What happens wWhen we share a namespace?
+Under the covers, Namespaces are inode locations on disk. This allows for processes to shared/reused the 
+same namespace, allowing them to view and interact.
+
+# list all the namespaces in the redis-server process
+$ ls -lha /proc/$DBPID/ns/
+total 0
+dr-x--x--x 2 999 packer 0 Aug  2 20:25 .
+dr-xr-xr-x 9 999 packer 0 Aug  2 20:25 ..
+lrwxrwxrwx 1 999 packer 0 Aug  2 21:01 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 999 packer 0 Aug  2 20:28 ipc -> ipc:[4026532157]
+lrwxrwxrwx 1 999 packer 0 Aug  2 20:28 mnt -> mnt:[4026532155]
+lrwxrwxrwx 1 999 packer 0 Aug  2 20:25 net -> net:[4026532160]
+lrwxrwxrwx 1 999 packer 0 Aug  2 20:28 pid -> pid:[4026532158]
+lrwxrwxrwx 1 999 packer 0 Aug  2 20:28 user -> user:[4026531837]
+lrwxrwxrwx 1 999 packer 0 Aug  2 20:28 uts -> uts:[4026532156]
+
+# Another tool, NSEnter is used to attach processes to existing Namespaces. Useful for debugging purposes.
+nsenter --help
+
+# looking inside our redis-server conatiner and being able to run ps, 
+$ nsenter --target $DBPID --mount --uts --ipc --net --pid ps aux
+PID   USER     TIME  COMMAND
+    1 redis     0:04 redis-server
+   17 root      0:00 ps aux
+   
+# With Docker, these namespaces can be shared using the syntax container:<container-name>. 
+# For example, the command below will connect nginx to the DB namespace.
+
+# fire up nginx container
+$ docker run -d --name=web --net=container:db nginx:alpine
+Unable to find image 'nginx:alpine' locally
+alpine: Pulling from library/nginx
+050382585609: Already exists
+aa1504bc12ac: Pull complete
+Digest: sha256:482ead44b2203fa32b3390abdaf97cbdc8ad15c07fb03a3e68d7c35a19ad7595
+Status: Downloaded newer image for nginx:alpine
+
+$ WEBPID=$(pgrep nginx | tail -n1)
+$ echo nginx is $WEBPID
+nginx is 2885
+
+$ cat /proc/$WEBPID/cgroup
+11:blkio:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+10:pids:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+9:freezer:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+8:perf_event:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+7:cpuset:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+6:cpu,cpuacct:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+5:net_cls,net_prio:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+4:devices:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+3:memory:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+2:hugetlb:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+1:name=systemd:/docker/c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d
+
+# While the net has been shared, it will still be listed as a namespace. 
+$ ls -lha /proc/$WEBPID/ns/
+total 0
+dr-x--x--x 2 systemd-network systemd-journal 0 Aug  2 21:28 .
+dr-xr-xr-x 9 systemd-network systemd-journal 0 Aug  2 21:27 ..
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 ipc -> ipc:[4026532225]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 mnt -> mnt:[4026532223]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 net -> net:[4026532160]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 pid -> pid:[4026532226]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 user -> user:[4026531837]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 uts -> uts:[4026532224]
+
+# However, the net namespace for both processes points to the same location.
+$ ls -lha /proc/$DBPID/ns/ | grep net
+lrwxrwxrwx 1 999 packer 0 Aug  2 21:26 net -> net:[4026532160]
+$ ls -lha /proc/$WEBPID/ns/ | grep net
+dr-x--x--x 2 systemd-network systemd-journal 0 Aug  2 21:28 .
+dr-xr-xr-x 9 systemd-network systemd-journal 0 Aug  2 21:27 ..
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 ipc -> ipc:[4026532225]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 mnt -> mnt:[4026532223]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 net -> net:[4026532160]    <------------------
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 pid -> pid:[4026532226]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 user -> user:[4026531837]
+lrwxrwxrwx 1 systemd-network systemd-journal 0 Aug  2 21:28 uts -> uts:[4026532224]
+
+# Chroot
+An important part of a container process is the ability to have different files that are independent of the host. 
+This is how we can have different Docker Images based on different operating systems running on our system.
+
+Chroot provides the ability for a process to start with a different root directory to the parent OS. 
+This allows different files to appear in the root.
+
+# Cgroups (Control Groups)
+CGroups limit the amount of resources a process can consume. These cgroups are values defined in 
+particular files within the /proc directory.
+
+See above
+
+# These are mapped to other cgroup directories on disk at:
+$ ls /sys/fs/cgroup/
+blkio  cpuacct      cpuset   freezer  memory   net_cls,net_prio  perf_event  systemd
+cpu    cpu,cpuacct  devices  hugetlb  net_cls  net_prio          pids
+
+# What are the CPU stats for a process?
+# The CPU stats and usage is stored within a file too!
+
+$ cat /sys/fs/cgroup/cpu,cpuacct/docker/$DBID/cpuacct.stat
+user 278
+system 322
+
+# The CPU shares limit is also defined here.
+$ cat /sys/fs/cgroup/cpu,cpuacct/docker/$DBID/cpu.shares
+1024
+
+# All the Docker cgroups for the container's memory configuration are stored within:
+$ ls /sys/fs/cgroup/memory/docker/
+afe5d3d45ef5d7b96be494b2a88bf82c05bd95984ffc4f618b3100c9626b3f4f  memory.kmem.slabinfo                memory.oom_control
+c487c9bd87954c792982942c26cbd118f8d2b49e74e9baf5346affb91eb93a0d  memory.kmem.tcp.failcnt             memory.pressure_level
+cgroup.clone_children                                             memory.kmem.tcp.limit_in_bytes      memory.soft_limit_in_bytes
+cgroup.event_control                                              memory.kmem.tcp.max_usage_in_bytes  memory.stat
+cgroup.procs                                                      memory.kmem.tcp.usage_in_bytes      memory.swappiness
+memory.failcnt                                                    memory.kmem.usage_in_bytes          memory.usage_in_bytes
+memory.force_empty                                                memory.limit_in_bytes               memory.use_hierarchy
+memory.kmem.failcnt                                               memory.max_usage_in_bytes           notify_on_release
+memory.kmem.limit_in_bytes                                        memory.move_charge_at_immigrate     tasks
+memory.kmem.max_usage_in_bytes                                    memory.numa_stat
+
+# Each of the directory is grouped based on the container ID assigned by Docker.
+$ DBID=$(docker ps --no-trunc | grep 'db' | awk '{print $1}')
+$ WEBID=$(docker ps --no-trunc | grep 'nginx' | awk '{print $1}')
+$ ls /sys/fs/cgroup/memory/docker/$DBID
+ls: cannot access '77ddda0751180919bd7d3aa9e12af27a776b6bd659afdca8543738e29441f14b': No such file or directory
+/sys/fs/cgroup/memory/docker/7827c80c0fbe0740eb0447c094d340d60d99826780bcadb9f52e56facdd8cd52:
+cgroup.clone_children           memory.kmem.tcp.failcnt             memory.oom_control
+cgroup.event_control            memory.kmem.tcp.limit_in_bytes      memory.pressure_level
+cgroup.procs                    memory.kmem.tcp.max_usage_in_bytes  memory.soft_limit_in_bytes
+memory.failcnt                  memory.kmem.tcp.usage_in_bytes      memory.stat
+memory.force_empty              memory.kmem.usage_in_bytes          memory.swappiness
+memory.kmem.failcnt             memory.limit_in_bytes               memory.usage_in_bytes
+memory.kmem.limit_in_bytes      memory.max_usage_in_bytes           memory.use_hierarchy
+memory.kmem.max_usage_in_bytes  memory.move_charge_at_immigrate     notify_on_release
+memory.kmem.slabinfo            memory.numa_stat                    tasks
+
+# How to configure cgroups?
+# One of the properties of Docker is the ability to control memory limits. This is done via a cgroup setting.
+
+# By default, containershave no limit on the memory. We can view this via docker stats command.
+$ docker stats db --no-stream
+CONTAINER ID        NAME                CPU %               MEM USAGE / LIMIT     MEM %  NET I/O             BLOCK I/O           PIDS
+77ddda075118        db                  0.18%               8.281MiB / 992.1MiB   0.83%  1.3kB / 0B          0B / 0B             4
+
+# The memory quotes are stored in a file called memory.limit_in_bytes.
+# By writing to the file, we can change the limit limits of a process.
+
+$ echo 8000000 > /sys/fs/cgroup/memory/docker/$DBID/memory.limit_in_bytes
+
+# If you read the file back, you'll notice it's been converted to 7999488. 
+$ cat /sys/fs/cgroup/memory/docker/$DBID/memory.limit_in_bytes
+7999488
+
+# When checking Docker Stats again, the memory limit of the process is now 7.629M
+$ docker stats db --no-stream
+CONTAINER ID        NAME                CPU %               MEM USAGE / LIMIT     MEM %  NET I/O             BLOCK I/O           PIDS
+77ddda075118        db                  0.17%               7.621MiB / 7.629MiB   99.90%  1.3kB / 0B          0B / 0B             4
+
+# Seccomp / AppArmor
+All actions with Linux is done via syscalls. The kernel has 330 system calls that perform operations such 
+as read files, close handles and check access rights. All applications use a combination of these system 
+calls to perform the required operations.
+
+AppArmor is a application defined profile that describes which parts of the system a process can access.
+
+It's possible to view the current AppArmor profile assigned to a process via 
+$ cat /proc/$DBPID/attr/current
+docker-default (enforce)
+
+The default AppArmor profile for Docker is docker-default (enforce).
+
+Prior to Docker 1.13, it stored the AppArmor Profile in /etc/apparmor.d/docker-default (which was overwritten 
+when Docker started, so users couldn't modify it. After v1.13, Docker now generates docker-default in tmpfs, 
+uses apparmor_parser to load it into kernel, then deletes the file
+
+The template can be found at https://github.com/moby/moby/blob/a575b0b1384b2ba89b79cbd7e770fbeb616758b3/profiles/apparmor/template.go
+
+Seccomp provides the ability to limit which system calls can be made, blocking aspects such as installing 
+Kernel Modules or changing the file permissions.
+
+The default allowed calls with Docker can be found at 
+https://github.com/moby/moby/blob/a575b0b1384b2ba89b79cbd7e770fbeb616758b3/profiles/seccomp/default.json
+
+When assigned to a process it means the process will be limited to a subset of the ability system calls. 
+If it attempts to call a blocked system call is will recieve the error "Operation Not Allowed".
+
+# The status of SecComp is also defined within a file.
+$ cat /proc/$DBPID/status | grep Seccomp
+Seccomp:        2
+
+# The flag meaning are: 0: disabled 1: strict 2: filtering
+
+# Capabilities
+Capabilities are groupings about what a process or user has permission to do. These Capabilities might 
+cover multiple system calls or actions, such as changing the system time or hostname.
+
+The status file also containers the Capabilities flag. A process can drop as many Capabilities as possible 
+to ensure it's secure.
+
+$ cat /proc/$DBPID/status | grep ^Cap
+CapInh: 00000000a80425fb
+CapPrm: 0000000000000000
+CapEff: 0000000000000000
+CapBnd: 00000000a80425fb
+CapAmb: 0000000000000000
+
+# The flags are stored as a bitmask that can be decoded with capsh
+
+$ capsh --decode=00000000a80425fb
+0x00000000a80425fb=cap_chown,cap_dac_override,cap_fowner,cap_fsetid,cap_kill,cap_setgid,cap_setuid,cap_setpcap,
+cap_net_bind_service,cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,cap_setfcap
