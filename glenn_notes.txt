@@ -1,0 +1,78 @@
+# Docker Notes
+
+## Trial host
+* hsa0890x.bud.bpa.gov
+
+## Docker Commands
+
+### Run
+~~~~
+docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
+~~~~
+
+* IMAGE [REQ]:  
+  * image developer can set defaults like fg/bg, containerID, network settings, runtime resource constraints
+  * [OPTIONS](https://docs.docker.com/engine/reference/commandline/cli/#option-types) allows operator to override
+* COMMAND:  command for container to run 
+  * if empty, run commands fires up contianer, runs an empty command, and exits
+  
+~~~~
+docker run --help
+~~~~
+
+#### Docker test
+~~~~
+~~~~
+
+#### run a busybox container 
+* with shell access
+  * -i:   keep STDIN open even if detached -- interactive
+  * -t:   allocate a pseudo-tty
+  * --rm: automatically remove container when exits
+~~~~
+docker run -it --rm busybox
+
+docker run busybox echo "hello from busybox"
+~~~~
+'echo ""' is the COMMAND, container using busybox image fired up, echo command gven to container,
+it reponds with the output and exits
+
+### PS command (list running containers)
+~~~~
+docker ps
+~~~~
+
+~~~~
+[ 15:44:20 ] /home/users/epusogrb2013 [ root@hsa0890x ] # docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+~~~~
+
+* containers ever run ps -a  - listed containers can be restarted.....
+
+~~~~
+docker ps -a
+
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                     PORTS               NAMES
+848ed72b90e9        busybox             "echo 'hello from bu…"   4 minutes ago       Exited (0) 4 minutes ago                       inspiring_wilbur
+5a36250af2c1        busybox             "sh"                     2 hours ago         Exited (0) 2 hours ago                         sweet_panini
+8e89b42c5144        hello-world         "/hello"                 3 hours ago         Exited (0) 3 hours ago                         festive_rosalind
+4f16ef63dbc3        hello-world         "/hello"                 5 months ago        Exited (0) 5 months ago                        laughing_stallman
+~~~~
+
+### Removing/deleting containers (cleanup)
+* still have conainers in ps -a output but no longer need?  don't need restart capability
+
+~~~~
+docker rm <containerID>(s)
+
+or
+
+docker rm $(docker ps -a -q -f status=exited)
+
+or an equivalent on newer docker versions
+
+docker container prune
+~~~~
+
+* -d: retunr numeric IDs
+* -f: filter
