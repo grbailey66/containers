@@ -76,3 +76,50 @@ docker container prune
 
 * -d: retunr numeric IDs
 * -f: filter
+
+### Running a static web-site image
+~~~~
+ docker run --rm prakhar1989/static-site
+Unable to find image 'prakhar1989/static-site:latest' locally
+Trying to pull repository docker.io/prakhar1989/static-site ...
+latest: Pulling from docker.io/prakhar1989/static-site
+d4bce7fd68df: Pull complete
+a3ed95caeb02: Pull complete
+573113c4751a: Pull complete
+31917632be33: Pull complete
+77e66f18af1c: Pull complete
+df3f108f3ade: Pull complete
+d7a279eb19f5: Pull complete
+e798589c05c5: Pull complete
+78eeaf458ae0: Pull complete
+Digest: sha256:bb6907c8db9ac4c6cadb25162a979e286575cd8b27727c08c7fbaf30988534db
+Status: Downloaded newer image for prakhar1989/static-site:latest
+Nginx is running...
+~~~~
+
+* It is running but with no exposed ports and is connected to my terminal
+
+~~~~
+docker run -d -P --name static-site prakhar1989/static-site
+e15b17c911c003e390a86971691fcfced755160f0174f6f3d96f104940fd7dc0
+
+docker ps
+CONTAINER ID        IMAGE                     COMMAND             CREATED             STATUS              PORTS                                           NAMES
+e15b17c911c0        prakhar1989/static-site   "./wrapper.sh"      5 seconds ago       Up 3 seconds        0.0.0.0:32769->80/tcp, 0.0.0.0:32768->443/tcp   static-site
+
+docker port static-site
+443/tcp -> 0.0.0.0:32768
+80/tcp -> 0.0.0.0:32769
+
+docker run -p 8888:80 prakhar1989/static-site
+~~~~
+
+* -d: put in detached mode, disconnected STDIN... 
+* -P: publish ports defined in image (80 & 443)
+
+NOTE: test host does not accept incoming HTTP to this port - so browser times out
+
+#### Stopping a running container
+~~~~
+docker stop <conatinerID|name>
+~~~~
