@@ -4,7 +4,7 @@
 
 * Team is crucuial:  need to empower
 
-## Infrastructure and operations leade##rs responsible for the data center should:
+## Infrastructure and operations leaders responsible for the data center should:
 
 * Create a container platform strategy that applies best practices across security, governance monitoring, storage, networking, container life cycle management and container orchestration.
 * Start with small, simple use cases; ensure that containers are stateless and immutable; and enforce standardization, automation and federation of clusters for easier management and rapid scalability.
